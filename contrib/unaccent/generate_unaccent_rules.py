@@ -57,16 +57,15 @@ def is_letter_with_marks(codepoint, table):
         return False
 
     # A letter without diacritical marks has none of them.
-    if any(is_mark(table[i]) for i in codepoint.combining_ids[1:]) is False:
+    if not any(is_mark(table[i]) for i in codepoint.combining_ids[1:]):
         return False
 
     # Check if the base letter of this letter has marks.
     codepoint_base = codepoint.combining_ids[0]
-    if (is_plain_letter(table[codepoint_base]) is False and \
-        is_letter_with_marks(table[codepoint_base], table) is False):
-        return False
-
-    return True
+    return (
+        is_plain_letter(table[codepoint_base]) is not False
+        or is_letter_with_marks(table[codepoint_base], table) is not False
+    )
 
 def is_letter(codepoint, table):
     """Return true for letter with or without diacritical marks."""
@@ -123,8 +122,12 @@ def parse_cldr_latin_ascii_transliterator(latinAsciiFilePath):
         # Group 3: plain "trg" char. Empty if group 4 is not.
         # Group 4: plain "trg" char between quotes. Empty if group 3 is not.
         if matches is not None:
-            src = matches.group(1) if matches.group(1) is not None else matches.group(2).decode('unicode-escape')
-            trg = matches.group(3) if matches.group(3) is not None else matches.group(4)
+            src = (
+                matches[1]
+                if matches[1] is not None
+                else matches[2].decode('unicode-escape')
+            )
+            trg = matches[3] if matches[3] is not None else matches[4]
 
             # "'" and """ are escaped
             trg = trg.replace("\\'", "'").replace('\\"', '"')
@@ -138,18 +141,13 @@ def parse_cldr_latin_ascii_transliterator(latinAsciiFilePath):
 
 def special_cases():
     """Returns the special cases which are not handled by other methods"""
-    charactersSet = set()
-
-    # Cyrillic
-    charactersSet.add((0x0401, u"\u0415")) # CYRILLIC CAPITAL LETTER IO
-    charactersSet.add((0x0451, u"\u0435")) # CYRILLIC SMALL LETTER IO
-
-    # Symbols of "Letterlike Symbols" Unicode Block (U+2100 to U+214F)
-    charactersSet.add((0x2103, u"\xb0C")) # DEGREE CELSIUS
-    charactersSet.add((0x2109, u"\xb0F")) # DEGREE FAHRENHEIT
-    charactersSet.add((0x2117, "(P)")) # SOUND RECORDING COPYRIGHT
-
-    return charactersSet
+    return {
+        (0x0401, u"\u0415"),
+        (0x0451, u"\u0435"),
+        (0x2103, u"\xb0C"),
+        (0x2109, u"\xb0F"),
+        (0x2117, "(P)"),
+    }
 
 def main(args):
     # http://www.unicode.org/reports/tr44/tr44-14.html#Character_Decomposition_Mappings
